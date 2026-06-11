@@ -11,9 +11,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import approvals  # noqa: E402
 
 
-def _task(due_on, completed=False, completed_at=None, review_stage=None):
-    return {"due_on": due_on, "completed": completed,
-            "completed_at": completed_at, "review_stage": review_stage}
+def _task(due_on, completed=False, completed_at=None, review_stage=None, subtype="approval"):
+    return {"due_on": due_on, "completed": completed, "completed_at": completed_at,
+            "review_stage": review_stage, "resource_subtype": subtype}
 
 
 def _school(gid, name, region, band, tasks):
@@ -48,6 +48,17 @@ def test_manager_metrics_counts_reconcile():
     assert mg["unknown"] == 1
     assert mg["on_time"] + mg["late"] + mg["unknown"] == mg["approved"]
     assert mg["on_time_pct"] == round(1 / 3 * 100, 1)
+
+
+def test_non_approval_tasks_are_excluded():
+    snap = {"schools": [_school("1", "TEAM", "Newark", "MS", [
+        _task("2026-07-20", True, "2026-07-18T12:00:00Z"),                       # approval -> counts
+        _task("2026-07-20", True, "2026-07-18T12:00:00Z", subtype="default_task"),  # excluded
+        _task("2026-07-20", False, None, "Draft", subtype="milestone"),             # excluded
+    ])]}
+    a = approvals.build_approvals(snap)
+    assert a["managers"]["Newark:MS"]["approved"] == 1          # only the approval task
+    assert sum(a["school_review"]["1"]["counts"].values()) == 1  # only approval tasks bucketed
 
 
 def test_pipeline_state_counts_sum_to_total():

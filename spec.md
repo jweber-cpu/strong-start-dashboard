@@ -71,7 +71,7 @@ Leadership sees where items sit in review per school, and how timely **managers*
   - Given an approved (completed) item with `completed_at`, When ≤ `due_on`, Then it counts as an on-time approval for that item's manager group; When > `due_on`, late (record days late).
   - Given the manager view for Newark, When grouped, Then ES/MS/HS appear as separate managers; for Camden/Miami/Paterson the region is one manager group.
   - Given items still in Ready for Review, When the pipeline view loads, Then they show as "awaiting manager" with days-waiting since entering that stage *(days-waiting requires stage-entry timestamps — see OQ-5)*.
-- **Coverage:** all tasks in scope (not limited to Stock List) unless filtered.
+- **Coverage:** scoped to **approval-type tasks only** (`resource_subtype == "approval"`, ~13 per school) — the items that actually go through submit → review → approve. Regular tasks and milestones are excluded from the approvals view; they're covered by the weekly-pace metrics. (Corrected 2026-06-11 per user.)
 </details>
 
 ## Invariants & Edge Cases

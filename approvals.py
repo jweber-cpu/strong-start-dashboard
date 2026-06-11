@@ -32,8 +32,18 @@ def _review_state(task: dict) -> str:
     return "Not set"
 
 
+def is_approval(task: dict) -> bool:
+    """Only tasks of Asana subtype 'approval' are part of the approval workflow."""
+    return task.get("resource_subtype") == "approval"
+
+
 def build_approvals(snapshot: dict) -> dict:
-    """Manager-effectiveness rollups + per-school pipeline state counts."""
+    """Manager-effectiveness rollups + per-school pipeline state counts.
+
+    Scoped to APPROVAL-type tasks only (resource_subtype == 'approval') — the
+    items that actually go through submit -> review -> approve. Regular tasks
+    and milestones are excluded; they're covered by the weekly-pace metrics.
+    """
     managers: dict[str, dict] = {}
     school_review: dict[str, dict] = {}
 
@@ -47,7 +57,7 @@ def build_approvals(snapshot: dict) -> dict:
             m["schools"].append(s["name"])
 
         counts = {"Approved": 0, "Ready for Review": 0, "Draft": 0, "Not set": 0}
-        for t in s["tasks"]:
+        for t in (t for t in s["tasks"] if is_approval(t)):
             counts[_review_state(t)] += 1
             if t.get("completed"):
                 m["approved"] += 1
