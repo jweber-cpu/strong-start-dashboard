@@ -122,6 +122,26 @@ def test_region_rollup_reconciles_to_schools():
     assert m["regions"]["Newark"]["weekly"][wk]["completed"] == 2
 
 
+def test_manager_pace_reconciles_to_schools():
+    snapshot = {
+        "schools": [
+            {"gid": "1", "name": "A", "region": "Newark", "grade_band": "MS",
+             "manager_group": "Newark:MS",
+             "tasks": [_task("2026-07-20", True, "2026-07-19T12:00:00Z"), _task("2026-07-20", False)]},
+            {"gid": "2", "name": "B", "region": "Newark", "grade_band": "ES",
+             "manager_group": "Newark:ES",
+             "tasks": [_task("2026-07-20", True, "2026-07-25T12:00:00Z")]},
+        ]
+    }
+    m = metrics.build_metrics(snapshot)
+    wk = "2026-W30"
+    assert set(m["manager_pace"].keys()) == {"Newark:MS", "Newark:ES"}
+    assert m["manager_pace"]["Newark:MS"]["weekly"][wk]["cohort"] == 2
+    assert m["manager_pace"]["Newark:ES"]["weekly"][wk]["cohort"] == 1
+    total = sum(mp["weekly"][wk]["cohort"] for mp in m["manager_pace"].values())
+    assert total == sum(s["weekly"][wk]["cohort"] for s in m["schools"])
+
+
 def test_build_metrics_on_real_sample_if_present():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     path = os.path.join(here, "snapshot.json")

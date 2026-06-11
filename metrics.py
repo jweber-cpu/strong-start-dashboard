@@ -109,6 +109,7 @@ def build_metrics(snapshot: dict) -> dict:
 
     schools_out = []
     region_weekly: dict[str, dict[str, dict]] = {}
+    manager_weekly: dict[str, dict[str, dict]] = {}
     empty = lambda: {"cohort": 0, "completed": 0, "completion_pct": None, "on_time": 0, "on_time_pct": None}
 
     for s in snapshot["schools"]:
@@ -122,13 +123,15 @@ def build_metrics(snapshot: dict) -> dict:
             "grade_band": s.get("grade_band"), "manager_group": s.get("manager_group"),
             "undated": undated, "weekly": weekly,
         })
-        region = s["region"]
-        rw = region_weekly.setdefault(region, {wk: empty() for wk in weeks})
+        rw = region_weekly.setdefault(s["region"], {wk: empty() for wk in weeks})
+        mw = manager_weekly.setdefault(s.get("manager_group"), {wk: empty() for wk in weeks})
         for wk in weeks:
             base = {k: weekly[wk][k] for k in ("cohort", "completed", "completion_pct", "on_time", "on_time_pct")}
             rw[wk] = _merge_stats(rw[wk], base)
+            mw[wk] = _merge_stats(mw[wk], base)
 
     regions_out = {r: {"weekly": wk} for r, wk in region_weekly.items()}
+    manager_pace_out = {mg: {"weekly": wk} for mg, wk in manager_weekly.items()}
 
     import approvals  # function-level import avoids module-load circular dependency
     appr = approvals.build_approvals(snapshot)
@@ -138,6 +141,7 @@ def build_metrics(snapshot: dict) -> dict:
         "weeks": weeks,
         "schools": schools_out,
         "regions": regions_out,
+        "manager_pace": manager_pace_out,
         "managers": appr["managers"],
         "school_review": appr["school_review"],
     }

@@ -247,7 +247,61 @@
       "Choose schools (" + visibleCount() + " of " + M.schools.length + ") ▾";
   }
 
-  function renderAll() { renderCards(); renderBars(); renderTable(); renderManagers(); renderPipeline(); renderTrend(); }
+  // ---- on-time trajectory heatmap ----
+  var heat = { group: "school", metric: "on_time_pct" };
+
+  function heatEntities() {
+    if (heat.group === "region") {
+      return Object.keys(M.regions).sort().map(function (r) { return { name: r, weekly: M.regions[r].weekly }; });
+    }
+    if (heat.group === "manager") {
+      return Object.keys(M.manager_pace || {}).sort().map(function (mg) { return { name: mg, weekly: M.manager_pace[mg].weekly }; });
+    }
+    return M.schools.filter(function (s) { return state.visible && state.visible[s.gid]; })
+      .map(function (s) { return { name: s.name, weekly: s.weekly }; });
+  }
+
+  function slope(pts) { // least-squares slope (%/week); needs >=3 points
+    var n = pts.length; if (n < 3) return null;
+    var sx = 0, sy = 0, sxy = 0, sxx = 0;
+    pts.forEach(function (p) { sx += p.x; sy += p.y; sxy += p.x * p.y; sxx += p.x * p.x; });
+    var d = n * sxx - sx * sx; if (d === 0) return null;
+    return (n * sxy - sx * sy) / d;
+  }
+  function heatColor(v) { return v == null ? "#eef2f6" : v >= 80 ? "#1a7f4b" : v >= 50 ? "#e0a93b" : "#c0392b"; }
+
+  function renderHeatmap() {
+    var metric = heat.metric, numKey = metric === "on_time_pct" ? "on_time" : "completed";
+    var rows = heatEntities().map(function (e) {
+      var pts = [], den = 0, numr = 0, cells = "";
+      weeks.forEach(function (w, i) {
+        var s = e.weekly[w] || {}, v = s[metric];
+        if (s.cohort) { den += s.cohort; numr += s[numKey] || 0; }
+        if (v == null) { cells += '<td><span class="hc" style="background:' + heatColor(null) + '"></span></td>'; }
+        else {
+          cells += '<td><span class="hc" style="background:' + heatColor(v) + '" title="' + e.name + " " + w + ": " + v + "% (" + (s[numKey] || 0) + "/" + s.cohort + ')"></span></td>';
+          pts.push({ x: i, y: v });
+        }
+      });
+      var sl = slope(pts), season = den ? Math.round(numr / den * 100) : null;
+      var arrow = sl == null ? '<span class="trend-flat">—</span>'
+        : sl >= 1.5 ? '<span class="trend-up">▲ ' + sl.toFixed(1) + "</span>"
+        : sl <= -1.5 ? '<span class="trend-down">▼ ' + sl.toFixed(1) + "</span>"
+        : '<span class="trend-flat">→ ' + sl.toFixed(1) + "</span>";
+      return { name: e.name, cells: cells, arrow: arrow, season: season, slopeVal: sl == null ? -999 : sl };
+    });
+    rows.sort(function (a, b) { return (b.season == null ? -1 : b.season) - (a.season == null ? -1 : a.season); });
+
+    var head = '<tr><th class="nm"></th>' + weeks.map(function (w) { return "<th>" + w.slice(6) + "</th>"; }).join("") +
+      "<th>Trend</th><th>Season</th></tr>";
+    var body = rows.map(function (r) {
+      return '<tr><td class="nm">' + r.name + "</td>" + r.cells +
+        "<td>" + r.arrow + '</td><td class="season">' + (r.season == null ? "—" : r.season + "%") + "</td></tr>";
+    }).join("");
+    document.getElementById("heatmap").innerHTML = "<table>" + head + body + "</table>";
+  }
+
+  function renderAll() { renderCards(); renderBars(); renderTable(); renderManagers(); renderPipeline(); renderTrend(); renderHeatmap(); }
 
   // ---- wiring ----
   function init() {
@@ -295,7 +349,20 @@
       if (e.target.checked) state.visible[gid] = true; else delete state.visible[gid];
       document.getElementById("schoolToggle").textContent =
         "Choose schools (" + visibleCount() + " of " + M.schools.length + ") ▾";
-      renderCards(); renderBars(); renderTable(); renderPipeline(); renderTrend();
+      renderCards(); renderBars(); renderTable(); renderPipeline(); renderTrend(); renderHeatmap();
+    });
+
+    document.getElementById("hmGroup").addEventListener("click", function (e) {
+      if (e.target.tagName !== "BUTTON") return;
+      heat.group = e.target.getAttribute("data-g");
+      Array.prototype.forEach.call(this.children, function (b) { b.classList.toggle("active", b === e.target); });
+      renderHeatmap();
+    });
+    document.getElementById("hmMetric").addEventListener("click", function (e) {
+      if (e.target.tagName !== "BUTTON") return;
+      heat.metric = e.target.getAttribute("data-m");
+      Array.prototype.forEach.call(this.children, function (b) { b.classList.toggle("active", b === e.target); });
+      renderHeatmap();
     });
 
     document.getElementById("trendAll").addEventListener("click", function () {

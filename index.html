@@ -36,6 +36,15 @@
   #schoolList { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:2px 16px; }
   #schoolList label { display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:3px 0; }
   #schoolList .rg { font-size:11px; color:#8a98a6; }
+  .hm-controls { display:flex; gap:8px; flex-wrap:wrap; }
+  #heatmap { overflow-x:auto; }
+  #heatmap table { border-collapse:collapse; }
+  #heatmap th { font-size:10px; color:#8a98a6; font-weight:600; padding:2px; }
+  #heatmap td { padding:1px 2px; text-align:center; }
+  #heatmap td.nm, #heatmap th.nm { text-align:left; font-size:12px; white-space:nowrap; padding-right:10px; min-width:120px; }
+  #heatmap td.season { font-variant-numeric:tabular-nums; font-size:12px; padding-left:8px; }
+  .hc { width:22px; height:16px; border-radius:3px; display:inline-block; }
+  .trend-up { color:var(--good); font-weight:600; } .trend-down { color:var(--bad); font-weight:600; } .trend-flat { color:#8a98a6; }
   .cards { display:flex; gap:12px; flex-wrap:wrap; margin:10px 0 22px; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 16px; min-width:140px; }
   .card .n { font-size:24px; font-weight:700; }
@@ -155,6 +164,30 @@
       </div>
     </div>
     <div id="trend"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2 style="margin:0">On-time trajectory — heatmap (improving or slipping over time)</h2>
+      <div class="hm-controls">
+        <div class="toggle" id="hmGroup">
+          <button data-g="school" class="active">School</button>
+          <button data-g="region">Region</button>
+          <button data-g="manager">Manager</button>
+        </div>
+        <div class="toggle" id="hmMetric">
+          <button data-m="on_time_pct" class="active">On-time %</button>
+          <button data-m="completion_pct">Completion %</button>
+        </div>
+      </div>
+    </div>
+    <div id="heatmap"></div>
+    <div class="legend">
+      <span><span class="sw" style="background:#c0392b"></span>&lt;50%</span>
+      <span><span class="sw" style="background:#e0a93b"></span>50–79%</span>
+      <span><span class="sw" style="background:#1a7f4b"></span>≥80%</span>
+      <span class="muted">blank = nothing due/finished that week · Trend ▲ improving / ▼ slipping (slope, %/week) · Season = to-date</span>
+    </div>
   </div>
 </div>
 <script src="metrics.js"></script>
