@@ -5,6 +5,7 @@
 snapshot.json
 metrics.json
 metrics.js
+dashboard.html
 
 # Python
 __pycache__/
