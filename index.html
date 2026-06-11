@@ -30,6 +30,9 @@
   .toggle { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
   .toggle button { border:0; border-radius:0; cursor:pointer; }
   .toggle button.active { background:var(--bar); color:#fff; }
+  .btn { font:inherit; font-size:12px; padding:5px 10px; border:1px solid var(--line); border-radius:6px; background:#fff; color:inherit; cursor:pointer; }
+  .btn:hover { background:#f0f5fa; }
+  .panel-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
   .cards { display:flex; gap:12px; flex-wrap:wrap; margin:10px 0 22px; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 16px; min-width:140px; }
   .card .n { font-size:24px; font-weight:700; }
@@ -95,7 +98,7 @@
   </div>
 
   <div class="panel">
-    <h2>Detail — click a row to see its trend</h2>
+    <h2>Detail — click rows to compare them in the trend (multi-select)</h2>
     <table id="tbl"><thead></thead><tbody></tbody></table>
   </div>
 
@@ -117,7 +120,13 @@
   </div>
 
   <div class="panel">
-    <h2 id="trendTitle">Trend across weeks</h2>
+    <div class="panel-head">
+      <h2 id="trendTitle" style="margin:0">Trend across weeks</h2>
+      <div>
+        <button class="btn" id="trendAll">Select all shown</button>
+        <button class="btn" id="trendClear">Clear</button>
+      </div>
+    </div>
     <div id="trend"></div>
   </div>
 </div>

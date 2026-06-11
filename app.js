@@ -6,7 +6,10 @@
   if (!M) { document.getElementById("meta").textContent = "metrics.js not found — run: python metrics.py"; return; }
 
   var weeks = M.weeks;
-  var state = { week: defaultWeek(), view: "school", region: "", sortKey: "completion_pct", sortAsc: false, sel: null };
+  var state = { week: defaultWeek(), view: "school", region: "", sortKey: "completion_pct", sortAsc: false, selected: [] };
+  // distinct line colors for the multi-select trend (cycles if more entities than colors)
+  var PALETTE = ["#2f6db0", "#c0392b", "#1a7f4b", "#c98a00", "#7d4fc0", "#d6457e",
+                 "#0f9aa8", "#8c564b", "#5aa02c", "#e07b00", "#3b5bdb", "#9c36b5"];
 
   // ---- helpers ----
   function defaultWeek() {
@@ -114,7 +117,7 @@
     var tbody = document.querySelector("#tbl tbody");
     tbody.innerHTML = es.map(function (e) {
       var s = wk(e);
-      return '<tr data-k="' + e.key + '" class="' + (state.sel === e.key ? "sel" : "") + '">' +
+      return '<tr data-k="' + e.key + '" class="' + (state.selected.indexOf(e.key) >= 0 ? "sel" : "") + '">' +
         COLS.map(function (c) {
           var v = rowVal(e, c.k);
           if (c.pill) {
@@ -128,33 +131,52 @@
   }
 
   function renderTrend() {
-    var es = entities();
-    var ent = state.sel ? es.filter(function (e) { return e.key === state.sel; })[0] : null;
+    var es = entities(), byKey = {};
+    es.forEach(function (e) { byKey[e.key] = e; });
+    var sel = state.selected.filter(function (k) { return byKey[k]; }); // keep only entities valid in this view
     var title = document.getElementById("trendTitle");
-    if (!ent) { title.textContent = "Trend across weeks — (click a row)"; document.getElementById("trend").innerHTML = '<div class="muted">Select a row above to see its weekly completion trend.</div>'; return; }
-    title.textContent = "Trend across weeks — " + ent.name + " (completion % by due-week)";
+    var box = document.getElementById("trend");
+    if (!sel.length) {
+      title.textContent = "Trend across weeks — completion % by due-week";
+      box.innerHTML = '<div class="muted">Click one or more rows above to overlay their weekly completion trends. ' +
+        'Tip: switch View to <b>By region</b> then <b>Select all shown</b> to compare all four regions.</div>';
+      return;
+    }
+    title.textContent = "Trend across weeks — completion % by due-week (" + sel.length + " selected)";
 
-    var W = 1100, H = 220, padL = 36, padB = 28, padT = 12, padR = 12;
+    var W = 1100, H = 240, padL = 36, padB = 28, padT = 12, padR = 12;
     var n = weeks.length, iw = (W - padL - padR) / Math.max(1, n - 1);
     function x(i) { return padL + i * iw; }
     function y(v) { return padT + (1 - v / 100) * (H - padT - padB); }
-    var pts = [], dots = "";
-    weeks.forEach(function (wkl, i) {
-      var s = ent.weekly[wkl] || { completion_pct: null, cohort: 0 };
-      if (s.completion_pct === null) return;
-      pts.push(x(i) + "," + y(s.completion_pct));
-      dots += '<circle cx="' + x(i) + '" cy="' + y(s.completion_pct) + '" r="3" fill="var(--bar)"><title>' + wkl + ": " + s.completion_pct + "% (" + s.completed + "/" + s.cohort + ")</title></circle>";
-    });
+
     var grid = [0, 25, 50, 75, 100].map(function (g) {
       return '<line x1="' + padL + '" y1="' + y(g) + '" x2="' + (W - padR) + '" y2="' + y(g) + '" stroke="var(--line)"/>' +
         '<text x="4" y="' + (y(g) + 3) + '">' + g + '</text>';
     }).join("");
     var labels = weeks.map(function (wkl, i) {
-      return (i % 1 === 0) ? '<text x="' + x(i) + '" y="' + (H - 8) + '" text-anchor="middle">' + wkl.slice(5) + '</text>' : "";
+      return '<text x="' + x(i) + '" y="' + (H - 8) + '" text-anchor="middle">' + wkl.slice(5) + '</text>';
     }).join("");
-    var line = pts.length ? '<polyline fill="none" stroke="var(--bar)" stroke-width="2" points="' + pts.join(" ") + '"/>' : '<text x="' + (W / 2) + '" y="' + (H / 2) + '" text-anchor="middle">no completed-vs-due data yet</text>';
-    document.getElementById("trend").innerHTML =
-      '<svg viewBox="0 0 ' + W + " " + H + '" width="100%" preserveAspectRatio="xMidYMid meet">' + grid + line + dots + labels + "</svg>";
+
+    var series = sel.map(function (k, idx) {
+      var ent = byKey[k], col = PALETTE[idx % PALETTE.length], pts = [], dots = "";
+      weeks.forEach(function (wkl, i) {
+        var s = ent.weekly[wkl] || { completion_pct: null };
+        if (s.completion_pct === null) return;
+        pts.push(x(i) + "," + y(s.completion_pct));
+        dots += '<circle cx="' + x(i) + '" cy="' + y(s.completion_pct) + '" r="2.5" fill="' + col + '"><title>' +
+          ent.name + " " + wkl + ": " + s.completion_pct + "%</title></circle>";
+      });
+      var poly = pts.length ? '<polyline fill="none" stroke="' + col + '" stroke-width="2" points="' + pts.join(" ") + '"/>' : "";
+      return poly + dots;
+    }).join("");
+
+    var legend = sel.map(function (k, idx) {
+      return '<span><span class="sw" style="background:' + PALETTE[idx % PALETTE.length] + '"></span>' + byKey[k].name + "</span>";
+    }).join("");
+
+    box.innerHTML =
+      '<svg viewBox="0 0 ' + W + " " + H + '" width="100%" preserveAspectRatio="xMidYMid meet">' + grid + series + labels + "</svg>" +
+      '<div class="legend">' + legend + "</div>";
   }
 
   function renderManagers() {
@@ -207,14 +229,22 @@
     var regions = Array.from(new Set(M.schools.map(function (s) { return s.region; }))).sort();
     var rf = document.getElementById("regionFilter");
     rf.innerHTML = '<option value="">All regions</option>' + regions.map(function (r) { return '<option value="' + r + '">' + r + "</option>"; }).join("");
-    rf.addEventListener("change", function () { state.region = this.value; state.sel = null; renderAll(); });
+    rf.addEventListener("change", function () { state.region = this.value; state.selected = []; renderAll(); });
 
     document.getElementById("view").addEventListener("click", function (e) {
       if (e.target.tagName !== "BUTTON") return;
-      state.view = e.target.getAttribute("data-v"); state.sel = null;
+      state.view = e.target.getAttribute("data-v"); state.selected = []; // keys differ between views
       Array.prototype.forEach.call(this.children, function (b) { b.classList.toggle("active", b === e.target); });
       document.getElementById("regionFilter").disabled = (state.view === "region");
       renderAll();
+    });
+
+    document.getElementById("trendAll").addEventListener("click", function () {
+      state.selected = entities().map(function (e) { return e.key; });
+      renderTable(); renderTrend();
+    });
+    document.getElementById("trendClear").addEventListener("click", function () {
+      state.selected = []; renderTable(); renderTrend();
     });
 
     document.querySelector("#tbl thead").addEventListener("click", function (e) {
@@ -225,7 +255,9 @@
     });
     document.querySelector("#tbl tbody").addEventListener("click", function (e) {
       var tr = e.target.closest("tr"); if (!tr) return;
-      state.sel = tr.getAttribute("data-k"); renderTable(); renderTrend();
+      var k = tr.getAttribute("data-k"), i = state.selected.indexOf(k);
+      if (i >= 0) state.selected.splice(i, 1); else state.selected.push(k); // toggle
+      renderTable(); renderTrend();
     });
 
     renderAll();
