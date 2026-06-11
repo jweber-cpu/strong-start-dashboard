@@ -14,6 +14,25 @@ See `spec.md`, `build-plan.md`, `test-plan.md`, `landscape.md` for the design.
 - `tests/` — pytest suite (run before trusting changes)
 - `build_sample_snapshot.py` — dev-only: assembles a 6-school sample from saved pulls (throwaway)
 
+## Teammate setup (clone from GitHub)
+For a teammate setting this up on their own machine the first time. Requires
+**Python 3.10+** and an **Asana account with access to the FY27 Summer Strong Start portfolio**.
+```powershell
+git clone https://github.com/jweber-cpu/strong-start-dashboard.git
+cd strong-start-dashboard
+pip install -r requirements.txt
+copy .env.example .env          # then paste YOUR Asana token into .env (see below)
+python snapshot.py              # pulls all 24 schools  -> snapshot.json
+python metrics.py               # computes metrics      -> metrics.json + metrics.js
+```
+Then open `index.html`. After the first setup, just double-click **`refresh.bat`** to pull
+fresh data (it runs both scripts for you).
+
+> Note: running locally needs Python **and** a personal Asana token per person. That's fine
+> for ops/technical teammates. Leaders who only need to *view* should instead be sent the
+> generated `index.html` + `app.js` + `metrics.js` (opens in any browser, no install), or use
+> the hosted version if/when it's stood up.
+
 ## Run it for real (full 24 schools)
 ```powershell
 pip install -r requirements.txt
@@ -29,8 +48,8 @@ Just open `index.html` in a browser (it reads `metrics.js`, so no server needed)
 Or serve it: `python -m http.server 8765` then visit http://localhost:8765/.
 
 ## Refreshing
-Re-run `python snapshot.py && python metrics.py` whenever you want current numbers
-(e.g., before a leadership meeting), then reload the page.
+Double-click **`refresh.bat`** (or re-run `python snapshot.py && python metrics.py`) whenever
+you want current numbers — e.g., before a leadership meeting — then reload the page.
 
 ## Tests
 ```powershell
@@ -38,9 +57,10 @@ python -m pytest tests/ -q
 ```
 
 ## Status / notes
-- The committed `snapshot.json`/`metrics.json` (if present) are a **DEV SAMPLE**: 6 schools
-  (one per manager group), first 100 tasks each. Run `snapshot.py` with a token for the full set.
-- **Manager effectiveness** (approval timing vs due date) and the **approvals pipeline** view
-  are Phase 4 (`approvals.py`) — not yet built. "Approved" = task completed; `completed_at` is
-  the approval timestamp.
-- Time-in-stage / rejection-loop counts need the Asana activity log — deferred (OQ-5).
+- All four build phases are complete: snapshot pull, weekly metrics, dashboard, and the
+  **manager-effectiveness + approvals-pipeline** views (`approvals.py`). "Approved" = task
+  completed; `completed_at` is the approval timestamp.
+- Data files (`snapshot.json`, `metrics.json`, `metrics.js`) are **gitignored** — each runner
+  generates them locally from their own pull. Nothing data-bearing lives in the repo.
+- **Not built (by design):** time-in-stage / rejection-loop counts (need the Asana activity
+  log, OQ-5); hosted always-current version; FY26 / DSO Playbook projects.
