@@ -6,7 +6,7 @@
   if (!M) { document.getElementById("meta").textContent = "metrics.js not found — run: python metrics.py"; return; }
 
   var weeks = M.weeks;
-  var state = { week: defaultWeek(), view: "school", region: "", sortKey: "completion_pct", sortAsc: false, selected: [] };
+  var state = { week: defaultWeek(), view: "school", region: "", band: "", sortKey: "completion_pct", sortAsc: false, selected: [], visible: null };
   // distinct line colors for the multi-select trend (cycles if more entities than colors)
   var PALETTE = ["#2f6db0", "#c0392b", "#1a7f4b", "#c98a00", "#7d4fc0", "#d6457e",
                  "#0f9aa8", "#8c564b", "#5aa02c", "#e07b00", "#3b5bdb", "#9c36b5"];
@@ -24,7 +24,20 @@
   function pct(v) { return v === null || v === undefined ? "—" : v.toFixed(1) + "%"; }
   function color(v) { return v === null ? "var(--muted)" : v >= 80 ? "var(--good)" : v >= 50 ? "var(--mid)" : "var(--bad)"; }
 
-  // entities for the current view: schools (optionally region-filtered) or regions
+  // schools matching the region + grade-band quick filters (the candidate pool)
+  function schoolsMatching() {
+    return M.schools.filter(function (s) {
+      return (!state.region || s.region === state.region) && (!state.band || s.grade_band === state.band);
+    });
+  }
+  // reset the visible set to everything matching the current quick filters
+  function presetVisible() {
+    state.visible = {};
+    schoolsMatching().forEach(function (s) { state.visible[s.gid] = true; });
+  }
+  function visibleCount() { return Object.keys(state.visible || {}).length; }
+
+  // entities for the current view: visible schools, or all regions
   function entities() {
     if (state.view === "region") {
       return Object.keys(M.regions).sort().map(function (r) {
@@ -32,7 +45,7 @@
       });
     }
     return M.schools
-      .filter(function (s) { return !state.region || s.region === state.region; })
+      .filter(function (s) { return state.visible && state.visible[s.gid]; })
       .map(function (s) {
         return { key: s.gid, name: s.name, region: s.region, manager_group: s.manager_group, weekly: s.weekly };
       });
@@ -115,6 +128,10 @@
     });
 
     var tbody = document.querySelector("#tbl tbody");
+    if (es.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="' + COLS.length + '" class="muted">No schools selected — use “Choose schools” or “Select all”.</td></tr>';
+      return;
+    }
     tbody.innerHTML = es.map(function (e) {
       var s = wk(e);
       return '<tr data-k="' + e.key + '" class="' + (state.selected.indexOf(e.key) >= 0 ? "sel" : "") + '">' +
@@ -202,8 +219,9 @@
     var sr = M.school_review || {};
     var order = ["Approved", "Ready for Review", "Draft", "Not set"];
     var colors = { "Approved": "var(--good)", "Ready for Review": "var(--bar2)", "Draft": "var(--mid)", "Not set": "#cbd5df" };
-    var schools = Object.keys(sr).map(function (g) { return sr[g]; });
-    if (state.region) schools = schools.filter(function (r) { return M.schools.some(function (s) { return s.name === r.name && s.region === state.region; }); });
+    var schools = Object.keys(sr)
+      .filter(function (g) { return state.view === "region" || (state.visible && state.visible[g]); })
+      .map(function (g) { return sr[g]; });
     schools.sort(function (a, b) { return (b.counts.Approved) - (a.counts.Approved); });
     document.getElementById("pipe").innerHTML = schools.map(function (r) {
       var total = order.reduce(function (a, k) { return a + r.counts[k]; }, 0) || 1;
@@ -217,11 +235,24 @@
     }).join("");
   }
 
+  function renderSchoolList() {
+    var list = document.getElementById("schoolList");
+    var pool = schoolsMatching().slice().sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+    list.innerHTML = pool.map(function (s) {
+      var on = state.visible && state.visible[s.gid] ? " checked" : "";
+      return '<label><input type="checkbox" data-gid="' + s.gid + '"' + on + ">" +
+        s.name + ' <span class="rg">' + s.region + "·" + s.grade_band + "</span></label>";
+    }).join("") || '<span class="muted">No schools match the current region/band filters.</span>';
+    document.getElementById("schoolToggle").textContent =
+      "Choose schools (" + visibleCount() + " of " + M.schools.length + ") ▾";
+  }
+
   function renderAll() { renderCards(); renderBars(); renderTable(); renderManagers(); renderPipeline(); renderTrend(); }
 
   // ---- wiring ----
   function init() {
     renderMeta();
+    presetVisible(); // start with all schools visible
     var wsel = document.getElementById("week");
     wsel.innerHTML = weeks.map(function (w) { return '<option value="' + w + '"' + (w === state.week ? " selected" : "") + ">" + w + "</option>"; }).join("");
     wsel.addEventListener("change", function () { state.week = this.value; renderAll(); });
@@ -229,14 +260,42 @@
     var regions = Array.from(new Set(M.schools.map(function (s) { return s.region; }))).sort();
     var rf = document.getElementById("regionFilter");
     rf.innerHTML = '<option value="">All regions</option>' + regions.map(function (r) { return '<option value="' + r + '">' + r + "</option>"; }).join("");
-    rf.addEventListener("change", function () { state.region = this.value; state.selected = []; renderAll(); });
+    rf.addEventListener("change", function () { state.region = this.value; state.selected = []; presetVisible(); renderSchoolList(); renderAll(); });
+
+    document.getElementById("bandFilter").addEventListener("change", function () {
+      state.band = this.value; state.selected = []; presetVisible(); renderSchoolList(); renderAll();
+    });
+
+    function setSchoolControlsEnabled(on) {
+      ["regionFilter", "bandFilter", "schoolToggle"].forEach(function (id) { document.getElementById(id).disabled = !on; });
+      if (!on) document.getElementById("schoolChooser").style.display = "none";
+    }
 
     document.getElementById("view").addEventListener("click", function (e) {
       if (e.target.tagName !== "BUTTON") return;
       state.view = e.target.getAttribute("data-v"); state.selected = []; // keys differ between views
       Array.prototype.forEach.call(this.children, function (b) { b.classList.toggle("active", b === e.target); });
-      document.getElementById("regionFilter").disabled = (state.view === "region");
+      setSchoolControlsEnabled(state.view === "school");
       renderAll();
+    });
+
+    // school chooser
+    document.getElementById("schoolToggle").addEventListener("click", function () {
+      var c = document.getElementById("schoolChooser");
+      c.style.display = c.style.display === "none" ? "block" : "none";
+    });
+    document.getElementById("schoolAll").addEventListener("click", function () {
+      presetVisible(); renderSchoolList(); renderAll();
+    });
+    document.getElementById("schoolNone").addEventListener("click", function () {
+      state.visible = {}; renderSchoolList(); renderAll();
+    });
+    document.getElementById("schoolList").addEventListener("change", function (e) {
+      var gid = e.target.getAttribute("data-gid"); if (!gid) return;
+      if (e.target.checked) state.visible[gid] = true; else delete state.visible[gid];
+      document.getElementById("schoolToggle").textContent =
+        "Choose schools (" + visibleCount() + " of " + M.schools.length + ") ▾";
+      renderCards(); renderBars(); renderTable(); renderPipeline(); renderTrend();
     });
 
     document.getElementById("trendAll").addEventListener("click", function () {
@@ -260,6 +319,7 @@
       renderTable(); renderTrend();
     });
 
+    renderSchoolList();
     renderAll();
   }
   init();
