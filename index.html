@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FY27 Summer Strong Start — Weekly Pace</title>
+<style>
+  :root {
+    --ink:#1c2b39; --muted:#5b6b7b; --line:#e3e8ee; --bg:#f6f8fa; --card:#fff;
+    --good:#1a7f4b; --mid:#c98a00; --bad:#c0392b; --bar:#2f6db0; --bar2:#9ecae1;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--bg); color:#1c2b39;
+    font-family:"Calibri","Verdana","Segoe UI",sans-serif; font-size:14px;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    text-rendering:optimizeLegibility;
+  }
+  /* Keep all bold text using real weights (no faux-bold "gradient" look) */
+  h1, h2, th, .card .n, .pill, tbody td:first-child { font-weight:600; }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:16px 24px; }
+  h1 { font-size:18px; margin:0 0 2px; }
+  .sub { color:#5b6b7b; font-size:12px; }
+  .wrap { max-width:1200px; margin:0 auto; padding:20px 24px 60px; }
+  .controls { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end; margin:18px 0; }
+  .controls label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#5b6b7b; margin-bottom:4px; }
+  select, .toggle button {
+    font:inherit; padding:7px 10px; border:1px solid var(--line); border-radius:6px; background:#fff; color:inherit;
+  }
+  .toggle { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+  .toggle button { border:0; border-radius:0; cursor:pointer; }
+  .toggle button.active { background:var(--bar); color:#fff; }
+  .cards { display:flex; gap:12px; flex-wrap:wrap; margin:10px 0 22px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 16px; min-width:140px; }
+  .card .n { font-size:24px; font-weight:700; }
+  .card .l { font-size:11px; color:#5b6b7b; text-transform:uppercase; letter-spacing:.04em; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin-bottom:20px; }
+  .panel h2 { font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:#5b6b7b; margin:0 0 12px; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:right; padding:7px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  th { cursor:pointer; font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:#5b6b7b; user-select:none; }
+  th.sorted::after { content:" \25BE"; }
+  th.asc.sorted::after { content:" \25B4"; }
+  tbody tr { cursor:pointer; }
+  tbody tr:hover { background:#f0f5fa; }
+  tbody tr.sel { background:#e7f0fa; }
+  .pill { display:inline-block; min-width:46px; padding:2px 6px; border-radius:5px; color:#fff; font-variant-numeric:tabular-nums; }
+  .barrow { display:flex; align-items:center; gap:8px; margin:5px 0; }
+  .barrow .nm { width:130px; font-size:12px; }
+  .bartrack { flex:1; background:#eef2f6; border-radius:4px; height:16px; position:relative; }
+  .barfill { height:100%; border-radius:4px; background:var(--bar); }
+  .barrow .v { width:54px; font-size:12px; text-align:right; font-variant-numeric:tabular-nums; }
+  .muted { color:#8a98a6; }
+  svg text { font-size:10px; fill:#5b6b7b; }
+  .legend { font-size:11px; color:#5b6b7b; margin-top:6px; }
+  .legend span { display:inline-block; margin-right:14px; }
+  .sw { display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:middle; margin-right:4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>FY27 Summer Strong Start — Weekly Pace</h1>
+  <div class="sub" id="meta">loading…</div>
+</header>
+<div class="wrap">
+  <div class="controls">
+    <div>
+      <label>Week (by due date)</label>
+      <select id="week"></select>
+    </div>
+    <div>
+      <label>View</label>
+      <div class="toggle" id="view">
+        <button data-v="school" class="active">By school</button>
+        <button data-v="region">By region</button>
+      </div>
+    </div>
+    <div>
+      <label>Region filter</label>
+      <select id="regionFilter"><option value="">All regions</option></select>
+    </div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="panel">
+    <h2 id="barTitle">Due-week completion %</h2>
+    <div id="bars"></div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--bar)"></span>Completion %</span>
+      <span><span class="sw" style="background:var(--bar2)"></span>On-time %</span>
+      <span class="muted">"—" = nothing due that week</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Detail — click a row to see its trend</h2>
+    <table id="tbl"><thead></thead><tbody></tbody></table>
+  </div>
+
+  <div class="panel">
+    <h2>Manager effectiveness — approval timing vs. due date (season to date)</h2>
+    <table id="mgrTbl"><thead></thead><tbody></tbody></table>
+    <div class="legend"><span class="muted">"Approved" = task completed. Avg days: positive = approved early, negative = late. Newark splits by grade band (= manager); other regions are one manager today.</span></div>
+  </div>
+
+  <div class="panel">
+    <h2>Approval pipeline by school (season to date)</h2>
+    <div id="pipe"></div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--good)"></span>Approved</span>
+      <span><span class="sw" style="background:var(--bar2)"></span>Ready for Review</span>
+      <span><span class="sw" style="background:var(--mid)"></span>Draft</span>
+      <span><span class="sw" style="background:#cbd5df"></span>Not set</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 id="trendTitle">Trend across weeks</h2>
+    <div id="trend"></div>
+  </div>
+</div>
+<script src="metrics.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

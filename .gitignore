@@ -1,0 +1,13 @@
+# Secrets — never commit
+.env
+
+# Data snapshots (internal; may contain operational task data)
+snapshot.json
+metrics.json
+metrics.js
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.hypothesis/

@@ -1,0 +1,34 @@
+{
+  "_comment": "Authoritative FY27 Summer Strong Start school config, user-confirmed 2026-06-10. Keyed by Asana project GID so duplicate-stem schools (Legacy ES/MS, Paterson Prep ES/MS) stay distinct. Portfolio: 1214543972018645.",
+  "_grade_band": "ES=elementary, MS=middle, HS=high. In Newark, managers are assigned BY grade band, so band = manager. Camden/Miami are single-manager today; band kept for reference/future managers. Paterson bands inferred from ES/MS names (confirm).",
+  "_manager_rule": "manager_group = (region == 'Newark') ? region + ':' + grade_band : region. Used for manager-effectiveness rollups (approval timeliness).",
+  "schools": {
+    "1214543972018555": { "name": "TEAM",            "region": "Newark",   "grade_band": "MS" },
+    "1214543972018568": { "name": "Rise",            "region": "Newark",   "grade_band": "MS" },
+    "1214543972018594": { "name": "Purpose",         "region": "Newark",   "grade_band": "MS" },
+    "1214543972018607": { "name": "Justice",         "region": "Newark",   "grade_band": "MS" },
+    "1214543972018581": { "name": "BOLD",            "region": "Newark",   "grade_band": "MS" },
+    "1214543972018490": { "name": "SPARK",           "region": "Newark",   "grade_band": "ES" },
+    "1214543972018503": { "name": "THRIVE",          "region": "Newark",   "grade_band": "ES" },
+    "1214543972018516": { "name": "Seek",            "region": "Newark",   "grade_band": "ES" },
+    "1214543972018529": { "name": "Life",            "region": "Newark",   "grade_band": "ES" },
+    "1214543972018542": { "name": "KURA",            "region": "Newark",   "grade_band": "ES" },
+    "1214543972018620": { "name": "NCA",             "region": "Newark",   "grade_band": "HS" },
+    "1214543972018633": { "name": "Lab",             "region": "Newark",   "grade_band": "HS" },
+
+    "1214566202106030": { "name": "LSP",             "region": "Camden",   "grade_band": "ES" },
+    "1214566202106017": { "name": "Sumner",          "region": "Camden",   "grade_band": "ES" },
+    "1214566202106004": { "name": "LSM",             "region": "Camden",   "grade_band": "MS" },
+    "1214566137135712": { "name": "Hatch",           "region": "Camden",   "grade_band": "MS" },
+    "1214566137135725": { "name": "KHS",             "region": "Camden",   "grade_band": "HS" },
+
+    "1214566137135738": { "name": "KRA",             "region": "Miami",    "grade_band": "ES" },
+    "1214566137135764": { "name": "Legacy ES",       "region": "Miami",    "grade_band": "ES" },
+    "1214566137135751": { "name": "KCA",             "region": "Miami",    "grade_band": "MS" },
+    "1214566137135777": { "name": "Legacy MS",       "region": "Miami",    "grade_band": "MS" },
+    "1214566137135790": { "name": "KIPP Miami Tech", "region": "Miami",    "grade_band": "HS" },
+
+    "1214566137135813": { "name": "Paterson Prep ES", "region": "Paterson", "grade_band": "ES" },
+    "1214566137135826": { "name": "Paterson Prep MS", "region": "Paterson", "grade_band": "MS" }
+  }
+}
