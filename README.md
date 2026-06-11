@@ -48,8 +48,10 @@ Just open `index.html` in a browser (it reads `metrics.js`, so no server needed)
 Or serve it: `python -m http.server 8765` then visit http://localhost:8765/.
 
 ## Refreshing
-Double-click **`refresh.bat`** (or re-run `python snapshot.py && python metrics.py`) whenever
-you want current numbers — e.g., before a leadership meeting — then reload the page.
+Double-click **`refresh.bat`** whenever you want current numbers — e.g., before a leadership
+meeting. It pulls fresh Asana data, rebuilds the metrics, rebuilds the self-contained
+`dashboard.html`, and opens it in your browser. (Manual equivalent:
+`python snapshot.py && python metrics.py && python build_standalone.py`.)
 
 ## Tests
 ```powershell

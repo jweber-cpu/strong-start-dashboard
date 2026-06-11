@@ -13,8 +13,13 @@ python metrics.py
 if errorlevel 1 goto :err
 
 echo.
-echo Done. Open index.html to view the updated dashboard.
-pause
+echo Building self-contained dashboard.html...
+python build_standalone.py
+if errorlevel 1 goto :err
+
+echo.
+echo Done. Opening the dashboard in your browser...
+start "" "%~dp0dashboard.html"
 exit /b 0
 
 :err
