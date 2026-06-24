@@ -20,7 +20,7 @@ def _read(name):
 
 
 def main():
-    html = _read("index.html")
+    html = _read("template.html")
     for src in ("metrics.js", "app.js"):
         path = os.path.join(HERE, src)
         if not os.path.exists(path):
