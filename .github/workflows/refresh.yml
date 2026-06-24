@@ -37,6 +37,6 @@ jobs:
           cp dashboard.html index.html
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add index.html snapshot.json metrics.json metrics.js dashboard.html
+          git add -f index.html
           git diff --cached --quiet || git commit -m "Update dashboard $(date +%Y-%m-%d)"
           git push
