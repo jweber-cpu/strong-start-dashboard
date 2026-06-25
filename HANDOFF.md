@@ -5,38 +5,48 @@
 - **Live URL**: https://jweber-cpu.github.io/strong-start-dashboard/
 - **Repo**: jweber-cpu/strong-start-dashboard (public, GitHub Pages on main branch)
 - **Daily schedule**: 7am ET via Claude Code scheduled task `strong-start-dashboard-daily`
-- **Workflow script**: saved in Claude's project directory (session-specific path — see below)
+- **Workflow script**: `C:\Users\Jweber\.claude\projects\C--Users-Jweber-Desktop-Claudio-Code-Sessions\759dd4b4-e296-4f6e-a343-28557f014195\workflows\scripts\strong-start-dashboard-wf_97bab375-a80.js`
+
+## Dashboard design
+
+The published dashboard is the **card-based view**:
+- Navy header (#001E62) with red K-mark (#EE3C37) and italic tagline
+- Summary bar: Total Schools / On Track / Off Track / Checklist Window (Jun 5 – Aug 14)
+- School cards grouped by cohort pill (colored by region)
+- Each card: school name, total tasks, On/Off track status, Expected Tasks, Expected %, Actual %, Overdue Tasks
+- On track = green border/pill (zero overdue); Off track = red border/pill
+- Font: Calibri
+
+**Do not use** the weekly-pace dashboard (week picker, bar charts, sortable table) — that is `index.html` / `dashboard.html` in the local repo and is for a different purpose.
 
 ## Architecture
 
-A Claude Code Workflow (`Workflow` tool) fetches Asana data and pushes `index.html` to GitHub Pages.
+A Claude Code Workflow (`Workflow` tool) fetches Asana data and pushes `index.html` to GitHub Pages via the `gh` CLI.
 
-**Phase 1 — Fetch Data:**
-- One agent gets today's date via bash
-- 24 agents run in parallel, one per school — each executes a Python script via bash that:
-  - Loads ASANA_TOKEN from `C:\Users\Jweber\Desktop\Claudio\Code Sessions\strong-start-dashboard\.env`
-  - Calls Asana API with pagination until no next_page
-  - Filters to Stock List tasks (field GID `1214472577362529`, value GID `1214472577362530`)
-  - Returns: totalStockList, expectedTasks, completedExpected, overdueTasks
+**Phase 1 — Fetch Data (2 agents):**
+1. Agent runs `fetch_all_schools.py TODAY school_data.json` via bash, returns `{today, success}`
+2. Agent reads `school_data.json` and returns its raw contents as plain text (no schema — avoids truncation)
+3. Workflow JS does `JSON.parse(rawJson)` to get school data
 
-**Phase 2 — Build & Publish:**
+**Phase 2 — Build & Publish (1 agent):**
 - HTML is built deterministically in the workflow JS (no LLM involved)
-- One agent pushes index.html to GitHub via `gh api` with base64-encoded content
+- Agent pushes index.html to GitHub via `gh api` with base64-encoded content
 
-## Known issue — ROOT CAUSE NOT YET RESOLVED
+## Why this architecture
 
-**Problem**: Only 1–6 schools show real task counts; the rest show 0.
+The previous approach spawned 24 parallel agents (one per school), each running a Python script via bash. Only 1–6 schools returned real data; the rest returned zeros. Root cause: agents in parallel bash contexts silently return schema-valid defaults when execution is unreliable.
 
-**What we know**:
-- `schoolsProcessed: 24` is always returned — agents aren't failing outright
-- The schools that show data vary run to run (not consistent by cohort)
-- Adding retry logic for HTTP 429s didn't help
-- ASANA_TOKEN is confirmed present in the .env file
+The fix: `fetch_all_schools.py` fetches all 24 schools sequentially in one Python process and writes `school_data.json`. A single agent runs it. A second agent reads the file as raw text — not via schema — to avoid the agent truncating a large structured response.
 
-**Likely root cause**: The 24 parallel agents are each spinning up bash + Python. Some agents appear to be returning the schema-valid default (all zeros) rather than actually executing the script — possibly due to bash unavailability in some agent contexts, or the agent hallucinating zeros when the script output is ambiguous.
+## fetch_all_schools.py
 
-**Recommended fix for next session**:
-Replace the 24-parallel-agent approach with a **single agent** that runs one Python script fetching all 24 schools sequentially. This eliminates parallelism risk and gives one clear execution context. The script already exists conceptually — just loop over all 24 project GIDs in one Python process.
+Located at: `C:\Users\Jweber\Desktop\Claudio\Code Sessions\strong-start-dashboard\fetch_all_schools.py`
+
+- Loops all 24 school GIDs sequentially
+- Paginates Asana API with retry (handles HTTPError + ConnectionResetError)
+- Filters to Stock List field (GID `1214472577362529`, value GID `1214472577362530`)
+- Writes results to the output path passed as argv[2]
+- Usage: `python fetch_all_schools.py YYYY-MM-DD output.json`
 
 ## Schools and project GIDs
 
@@ -73,33 +83,42 @@ Replace the 24-parallel-agent approach with a **single agent** that runs one Pyt
 - Stock List field GID: `1214472577362529`
 - Stock List enum value GID: `1214472577362530`
 - Checklist window: June 5 – August 14, 2026
+- ASANA_TOKEN: loaded from `.env` in the repo directory
 
 ## Calculations
 
-- **Total Stock List tasks**: all tasks where Stock List field = Stock List value, deduplicated by GID across all pages
+- **Total Stock List tasks**: all tasks where Stock List field = Stock List value
 - **Expected Tasks**: Stock List tasks with due_on <= today
 - **Expected %**: Expected ÷ Total (round to nearest %)
 - **Actual %**: Completed expected ÷ Total (round to nearest %)
 - **Overdue Tasks**: Expected AND incomplete
 - **On Track**: zero overdue tasks
 
-## HTML design
+## Scheduled task
 
-- Font: Calibri
-- Navy header (#001E62) with red K-mark (#EE3C37)
-- Cohort pills: Newark ES=#EE3C37, Newark MS=#F9A21A, Newark HS=#4CAF50, Camden K-12=#57C0E9, Miami K-12=#001E62, Paterson K-8=#9B59B6
-- Card left border: green (#22a55b) = on track, red (#EE3C37) = off track
-- Summary bar: total schools, on track count, off track count, checklist window
+- Task ID: `strong-start-dashboard-daily`
+- Schedule: 7am ET daily (cron `0 7 * * *`)
+- Runs on local machine — requires Claude Code to be running at 7am
+- Points at the workflow script path listed above
+- Last ran: 2026-06-24; next run: 2026-06-25 7am ET
 
-## Workflow script location
+## Manual run
 
-The workflow script is saved at a session-specific path inside Claude's project cache. To find it, search for `strong-start-dashboard-wf_*.js` in:
-`C:\Users\Jweber\.claude\projects\C--Users-Jweber-Desktop-Claudio-Code-Sessions\*\workflows\scripts\`
+To trigger a manual refresh, tell Claude Code:
+> Run the strong-start-dashboard workflow
+
+Or use the Workflow tool directly with the script path above.
+
+## Repo notes
+
+- `.nojekyll` is present — prevents Jekyll from stripping inlined JS
+- `refresh.yml` GitHub Actions workflow has been removed — Claude scheduled task is the automation
+- `fetch_all_schools.py` and `school_data.json` are gitignored (local only)
+- `template.html` and `dashboard.html` are the weekly-pace dashboard (local use only, not published to Pages)
 
 ## Next session starting point
 
 1. Open this repo in Claude Code
 2. Read this file
-3. Rewrite the data-fetch phase: single agent, single Python script, loops over all 24 schools sequentially, writes results to a temp JSON file, then the workflow reads that file to build HTML
-4. Test with one school first before running all 24
-5. Once confirmed working, the existing GitHub push logic and 7am schedule are fine as-is
+3. Pipeline is working end-to-end — no known issues
+4. If cards show zeros, test locally first: `python fetch_all_schools.py 2026-06-25 school_data.json` and verify output has real task counts
