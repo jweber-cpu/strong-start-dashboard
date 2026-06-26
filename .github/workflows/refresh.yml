@@ -1,0 +1,45 @@
+name: Refresh Dashboard
+
+on:
+  schedule:
+    - cron: '0 11 * * *'   # 7am ET (UTC-4 summer)
+  workflow_dispatch:         # allow manual runs from GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Get today's date
+        id: date
+        run: echo "today=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+
+      - name: Fetch Asana data
+        env:
+          ASANA_TOKEN: ${{ secrets.ASANA_TOKEN }}
+        run: python fetch_all_schools.py ${{ steps.date.outputs.today }} school_data.json
+
+      - name: Build card dashboard
+        run: python build_card_dashboard.py ${{ steps.date.outputs.today }}
+
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f index.html
+          git diff --cached --quiet || git commit -m "Update dashboard ${{ steps.date.outputs.today }}"
+          git push
