@@ -4,8 +4,8 @@
 
 - **Live URL**: https://jweber-cpu.github.io/strong-start-dashboard/
 - **Repo**: jweber-cpu/strong-start-dashboard (public, GitHub Pages on main branch)
-- **Daily schedule**: 7am ET via Claude Code scheduled task `strong-start-dashboard-daily`
-- **Workflow script**: `C:\Users\Jweber\.claude\projects\C--Users-Jweber-Desktop-Claudio-Code-Sessions\759dd4b4-e296-4f6e-a343-28557f014195\workflows\scripts\strong-start-dashboard-wf_97bab375-a80.js`
+- **Daily schedule**: 7am ET via GitHub Actions — runs in the cloud, no local machine needed
+- **Manual trigger**: Actions tab → Refresh Dashboard → Run workflow
 
 ## Dashboard design
 
@@ -17,35 +17,38 @@ The published dashboard is the **card-based view**:
 - On track = green border/pill (zero overdue); Off track = red border/pill
 - Font: Calibri
 
-**Do not use** the weekly-pace dashboard (week picker, bar charts, sortable table) — that is `index.html` / `dashboard.html` in the local repo and is for a different purpose.
+**Do not use** the weekly-pace dashboard (week picker, bar charts, sortable table) — that is `template.html` / `dashboard.html` in the local repo and is for a different purpose.
 
 ## Architecture
 
-A Claude Code Workflow (`Workflow` tool) fetches Asana data and pushes `index.html` to GitHub Pages via the `gh` CLI.
+GitHub Actions runs the pipeline daily at 7am ET (cron `0 11 * * *` UTC):
 
-**Phase 1 — Fetch Data (2 agents):**
-1. Agent runs `fetch_all_schools.py TODAY school_data.json` via bash, returns `{today, success}`
-2. Agent reads `school_data.json` and returns its raw contents as plain text (no schema — avoids truncation)
-3. Workflow JS does `JSON.parse(rawJson)` to get school data
+1. **`fetch_all_schools.py`** — fetches all 24 schools sequentially from Asana, writes `school_data.json`
+2. **`build_card_dashboard.py`** — reads `school_data.json`, builds card-based HTML, writes `index.html`
+3. **Commit & push** — `index.html` committed to main branch, GitHub Pages deploys automatically
 
-**Phase 2 — Build & Publish (1 agent):**
-- HTML is built deterministically in the workflow JS (no LLM involved)
-- Agent pushes index.html to GitHub via `gh api` with base64-encoded content
+No Claude workflow or local machine required for daily refresh.
 
-## Why this architecture
+## Key files
 
-The previous approach spawned 24 parallel agents (one per school), each running a Python script via bash. Only 1–6 schools returned real data; the rest returned zeros. Root cause: agents in parallel bash contexts silently return schema-valid defaults when execution is unreliable.
+| File | Purpose |
+|------|---------|
+| `fetch_all_schools.py` | Fetches Asana data for all 24 schools sequentially |
+| `build_card_dashboard.py` | Builds card-based HTML from school_data.json |
+| `.github/workflows/refresh.yml` | GitHub Actions workflow (daily 7am ET + manual trigger) |
+| `ASANA_TOKEN` | GitHub repo secret — used by Actions to authenticate with Asana |
 
-The fix: `fetch_all_schools.py` fetches all 24 schools sequentially in one Python process and writes `school_data.json`. A single agent runs it. A second agent reads the file as raw text — not via schema — to avoid the agent truncating a large structured response.
+## Why sequential fetch (not parallel)
+
+The previous approach spawned 24 parallel agents, one per school. Only 1–6 schools returned real data; the rest returned zeros. Root cause: parallel bash agent contexts silently returned schema-valid defaults.
+
+`fetch_all_schools.py` fetches all 24 schools in one Python process, sequentially, with retry on connection errors. Reliable and confirmed working.
 
 ## fetch_all_schools.py
-
-Located at: `C:\Users\Jweber\Desktop\Claudio\Code Sessions\strong-start-dashboard\fetch_all_schools.py`
 
 - Loops all 24 school GIDs sequentially
 - Paginates Asana API with retry (handles HTTPError + ConnectionResetError)
 - Filters to Stock List field (GID `1214472577362529`, value GID `1214472577362530`)
-- Writes results to the output path passed as argv[2]
 - Usage: `python fetch_all_schools.py YYYY-MM-DD output.json`
 
 ## Schools and project GIDs
@@ -83,7 +86,7 @@ Located at: `C:\Users\Jweber\Desktop\Claudio\Code Sessions\strong-start-dashboar
 - Stock List field GID: `1214472577362529`
 - Stock List enum value GID: `1214472577362530`
 - Checklist window: June 5 – August 14, 2026
-- ASANA_TOKEN: loaded from `.env` in the repo directory
+- ASANA_TOKEN: stored as a GitHub repo secret (Settings → Secrets → Actions)
 
 ## Calculations
 
@@ -94,31 +97,20 @@ Located at: `C:\Users\Jweber\Desktop\Claudio\Code Sessions\strong-start-dashboar
 - **Overdue Tasks**: Expected AND incomplete
 - **On Track**: zero overdue tasks
 
-## Scheduled task
+## Claude scheduled task
 
-- Task ID: `strong-start-dashboard-daily`
-- Schedule: 7am ET daily (cron `0 7 * * *`)
-- Runs on local machine — requires Claude Code to be running at 7am
-- Points at the workflow script path listed above
-- Last ran: 2026-06-24; next run: 2026-06-25 7am ET
-
-## Manual run
-
-To trigger a manual refresh, tell Claude Code:
-> Run the strong-start-dashboard workflow
-
-Or use the Workflow tool directly with the script path above.
+A Claude scheduled task (`strong-start-dashboard-daily`) also exists but is now redundant — GitHub Actions is the primary automation. The Claude task can be left as a backup or deleted.
 
 ## Repo notes
 
-- `.nojekyll` is present — prevents Jekyll from stripping inlined JS
-- `refresh.yml` GitHub Actions workflow has been removed — Claude scheduled task is the automation
-- `fetch_all_schools.py` and `school_data.json` are gitignored (local only)
-- `template.html` and `dashboard.html` are the weekly-pace dashboard (local use only, not published to Pages)
+- `.nojekyll` is present — prevents Jekyll from stripping JS
+- `fetch_all_schools.py` is committed to the repo (force-added past gitignore)
+- `school_data.json` is gitignored — generated at runtime, not stored in repo
+- `template.html` and `dashboard.html` are the weekly-pace dashboard (local use only)
 
 ## Next session starting point
 
 1. Open this repo in Claude Code
 2. Read this file
 3. Pipeline is working end-to-end — no known issues
-4. If cards show zeros, test locally first: `python fetch_all_schools.py 2026-06-25 school_data.json` and verify output has real task counts
+4. To debug: run `python fetch_all_schools.py YYYY-MM-DD school_data.json` locally and check output has real task counts before investigating anything else
