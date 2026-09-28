@@ -6,6 +6,8 @@ snapshot.json
 metrics.json
 metrics.js
 dashboard.html
+school_data.json
+school_data_test.json
 
 # Python
 __pycache__/
