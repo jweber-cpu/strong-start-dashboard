@@ -106,6 +106,11 @@ def build_metrics(snapshot: dict) -> dict:
         w, _ = bucket_by_week(s["tasks"])
         all_weeks.update(w)
     weeks = sorted(all_weeks)
+    # Monday (ISO) start date for each week, so the UI can show real dates not week numbers.
+    week_starts = {}
+    for wk in weeks:
+        y, w = wk.split("-W")
+        week_starts[wk] = date.fromisocalendar(int(y), int(w), 1).isoformat()
 
     schools_out = []
     region_weekly: dict[str, dict[str, dict]] = {}
@@ -139,6 +144,7 @@ def build_metrics(snapshot: dict) -> dict:
     return {
         "meta": {**snapshot.get("meta", {}), "weeks": weeks},
         "weeks": weeks,
+        "week_starts": week_starts,
         "schools": schools_out,
         "regions": regions_out,
         "manager_pace": manager_pace_out,

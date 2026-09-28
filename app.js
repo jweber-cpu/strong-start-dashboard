@@ -24,6 +24,12 @@
   function pct(v) { return v === null || v === undefined ? "—" : v.toFixed(1) + "%"; }
   function color(v) { return v === null ? "var(--muted)" : v >= 80 ? "var(--good)" : v >= 50 ? "var(--mid)" : "var(--bad)"; }
 
+  // Week labels as real dates (the week's Monday) instead of week numbers.
+  var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function weekStart(wk) { return (M.week_starts && M.week_starts[wk]) || wk; }
+  function fmtWeek(wk) { var d = weekStart(wk).split("-"); return d.length < 3 ? wk : MON[+d[1] - 1] + " " + (+d[2]); }      // "Jul 27"
+  function fmtWeekShort(wk) { var d = weekStart(wk).split("-"); return d.length < 3 ? wk : (+d[1]) + "/" + (+d[2]); }       // "7/27"
+
   // schools matching the region + grade-band quick filters (the candidate pool)
   function schoolsMatching() {
     return M.schools.filter(function (s) {
@@ -57,7 +63,7 @@
     var m = M.meta || {};
     var note = m.sample ? " · " + (m.sample_note || "DEV SAMPLE") : "";
     document.getElementById("meta").textContent =
-      M.schools.length + " schools · weeks " + weeks[0] + "–" + weeks[weeks.length - 1] +
+      M.schools.length + " schools · weeks of " + fmtWeek(weeks[0]) + "–" + fmtWeek(weeks[weeks.length - 1]) +
       (m.pulled_at ? " · pulled " + m.pulled_at.slice(0, 10) : "") + note;
   }
 
@@ -67,7 +73,7 @@
     var cp = tot.cohort ? (tot.completed / tot.cohort * 100) : null;
     var op = tot.cohort ? (tot.on_time / tot.cohort * 100) : null;
     var cards = [
-      ["Tasks due " + state.week, tot.cohort],
+      ["Tasks due week of " + fmtWeek(state.week), tot.cohort],
       ["Completed", tot.completed],
       ["Completion %", pct(cp)],
       ["On-time %", pct(op)],
@@ -81,7 +87,7 @@
   function renderBars() {
     var es = entities().map(function (e) { return { e: e, s: wk(e) }; });
     es.sort(function (a, b) { return (b.s.completion_pct || -1) - (a.s.completion_pct || -1); });
-    document.getElementById("barTitle").textContent = "Due-week completion % — " + state.week +
+    document.getElementById("barTitle").textContent = "Due-week completion % — week of " + fmtWeek(state.week) +
       (state.view === "region" ? " (by region)" : "");
     document.getElementById("bars").innerHTML = es.map(function (o) {
       var s = o.s, w = s.completion_pct || 0, w2 = s.on_time_pct || 0;
@@ -171,7 +177,7 @@
         '<text x="4" y="' + (y(g) + 3) + '">' + g + '</text>';
     }).join("");
     var labels = weeks.map(function (wkl, i) {
-      return '<text x="' + x(i) + '" y="' + (H - 8) + '" text-anchor="middle">' + wkl.slice(5) + '</text>';
+      return '<text x="' + x(i) + '" y="' + (H - 8) + '" text-anchor="middle">' + fmtWeekShort(wkl) + '</text>';
     }).join("");
 
     var series = sel.map(function (k, idx) {
@@ -181,7 +187,7 @@
         if (s.completion_pct === null) return;
         pts.push(x(i) + "," + y(s.completion_pct));
         dots += '<circle cx="' + x(i) + '" cy="' + y(s.completion_pct) + '" r="2.5" fill="' + col + '"><title>' +
-          ent.name + " " + wkl + ": " + s.completion_pct + "%</title></circle>";
+          ent.name + " — week of " + fmtWeek(wkl) + ": " + s.completion_pct + "%</title></circle>";
       });
       var poly = pts.length ? '<polyline fill="none" stroke="' + col + '" stroke-width="2" points="' + pts.join(" ") + '"/>' : "";
       return poly + dots;
@@ -279,7 +285,7 @@
         if (s.cohort) { den += s.cohort; numr += s[numKey] || 0; }
         if (v == null) { cells += '<td><span class="hc" style="background:' + heatColor(null) + '"></span></td>'; }
         else {
-          cells += '<td><span class="hc" style="background:' + heatColor(v) + '" title="' + e.name + " " + w + ": " + v + "% (" + (s[numKey] || 0) + "/" + s.cohort + ')"></span></td>';
+          cells += '<td><span class="hc" style="background:' + heatColor(v) + '" title="' + e.name + " — week of " + fmtWeek(w) + ": " + v + "% (" + (s[numKey] || 0) + "/" + s.cohort + ')"></span></td>';
           pts.push({ x: i, y: v });
         }
       });
@@ -292,7 +298,7 @@
     });
     rows.sort(function (a, b) { return (b.season == null ? -1 : b.season) - (a.season == null ? -1 : a.season); });
 
-    var head = '<tr><th class="nm"></th>' + weeks.map(function (w) { return "<th>" + w.slice(6) + "</th>"; }).join("") +
+    var head = '<tr><th class="nm"></th>' + weeks.map(function (w) { return "<th>" + fmtWeekShort(w) + "</th>"; }).join("") +
       "<th>Trend</th><th>Season</th></tr>";
     var body = rows.map(function (r) {
       return '<tr><td class="nm">' + r.name + "</td>" + r.cells +
@@ -308,7 +314,7 @@
     renderMeta();
     presetVisible(); // start with all schools visible
     var wsel = document.getElementById("week");
-    wsel.innerHTML = weeks.map(function (w) { return '<option value="' + w + '"' + (w === state.week ? " selected" : "") + ">" + w + "</option>"; }).join("");
+    wsel.innerHTML = weeks.map(function (w) { return '<option value="' + w + '"' + (w === state.week ? " selected" : "") + ">" + fmtWeek(w) + "</option>"; }).join("");
     wsel.addEventListener("change", function () { state.week = this.value; renderAll(); });
 
     var regions = Array.from(new Set(M.schools.map(function (s) { return s.region; }))).sort();
